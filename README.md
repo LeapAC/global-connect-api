@@ -1,43 +1,93 @@
-# Mintlify Starter Kit
+# Global Connect API Documentation
 
-Use the starter kit to get your docs deployed and ready to customize.
+This repository contains the documentation for the **Global Connect API**, a session-based customer onboarding platform for energy grid services programs.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+## About Global Connect
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+Global Connect is a RESTful API that enables partners to create dynamic, multi-step onboarding flows for customers enrolling in energy grid services programs. The API automatically generates appropriate onboarding steps based on transmission region, customer classification, and program requirements.
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
+### Key Features
 
-## Development
+- **Dynamic Flow Generation**: Onboarding flows automatically adapt based on transmission region (PJM, ERCOT, CAISO, etc.), customer type (residential/commercial), and program requirements
+- **Session-Based State Management**: Each customer onboarding creates a unique session that tracks progress and accumulates data throughout the enrollment process
+- **Step-by-Step Validation**: Validates customer input at each step with detailed error messages before advancing
+- **Agreement Management**: Handles customer agreements including e-signature workflows via integrated providers
+- **Utility Authorization**: OAuth flows for connecting utility accounts with support for multiple transmission regions
+- **Template Support**: Pre-configure default field values for specific partners, regions, and programs
 
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+### How It Works
+
+1. **Create a session** with transmission region, customer classification, and optional program identifier
+2. **Collect customer data** by updating the session context with field values
+3. **Validate each step** to ensure all requirements are met before advancing
+4. **Advance through steps** - the API automatically skips steps with pre-populated fields
+5. **Track completion** - query connection status after enrollment is finished
+
+## About This Documentation Project
+
+This documentation is built with [Mintlify](https://mintlify.com), a modern documentation framework that provides:
+
+- Interactive API reference generated from OpenAPI specifications
+- Rich markdown support with custom components
+- Built-in search functionality
+- Responsive design for desktop and mobile
+- Code examples and syntax highlighting
+
+### Documentation Structure
 
 ```
-npm i -g mint
+.
+├── index.mdx                    # Home page and overview
+├── quickstart.mdx              # Getting started guide
+├── development.mdx             # Development setup
+├── api-reference/
+│   ├── introduction.mdx        # API overview and authentication
+│   ├── openapi.json           # OpenAPI specification
+│   └── endpoint/              # Individual endpoint documentation
+├── ai-tools/                   # AI-assisted development guides
+└── docs.json                   # Mintlify configuration
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+### Local Development
 
+Install the [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview changes locally:
+
+```bash
+npm i -g mintlify
 ```
-mint dev
+
+Run the development server:
+
+```bash
+mintlify dev
 ```
 
-View your local preview at `http://localhost:3000`.
+The documentation will be available at `http://localhost:3000`.
 
-## Publishing changes
+### Making Changes
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+1. Edit `.mdx` files for content pages
+2. Update `api-reference/openapi.json` for API reference changes
+3. Modify `docs.json` for navigation and configuration
+4. Preview changes locally before committing
+5. Changes pushed to the main branch will automatically deploy
 
-## Need help?
+### OpenAPI Specification
 
-### Troubleshooting
+The API reference is automatically generated from the OpenAPI specification located at `api-reference/openapi.json`. To update the API documentation:
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+1. Edit the OpenAPI JSON file directly, or
+2. Generate it from your API server's OpenAPI endpoint
+3. Validate the specification using tools like [Swagger Editor](https://editor.swagger.io/)
 
 ### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+
+- [Global Connect API Documentation](https://docs.leap.energy)
+- [Mintlify Documentation](https://mintlify.com/docs)
+- [OpenAPI Specification](https://swagger.io/specification/)
+
+## Support
+
+For API integration support or questions about Global Connect, contact your Leap Energy integration team.
+
+For documentation issues or suggestions, please open an issue in this repository.
