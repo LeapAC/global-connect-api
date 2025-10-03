@@ -4,11 +4,11 @@
   "name": "Global Connect API",
   "openapi": "api-reference/openapi.json",
   "colors": {
-    "primary": "#0EA5E9",
-    "light": "#38BDF8",
-    "dark": "#0284C7"
+    "primary": "#004EFC",
+    "light": "#004EFC",
+    "dark": "#7E00FC"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.png",
   "navigation": {
     "tabs": [
       {
@@ -103,14 +103,14 @@
     }
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/logo/leap_black.svg",
+    "dark": "/logo/leap_white.svg"
   },
   "navbar": {
     "links": [
       {
         "label": "Support",
-        "href": "mailto:apiteam@leap.energy"
+        "href": "mailto:support@leap.energy"
       }
     ]
   },
@@ -128,8 +128,8 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/leapgroupenergy",
-      "linkedin": "https://linkedin.com/company/leap-energy"
+      "x": "https://x.com/leapdex",
+      "linkedin": "https://www.linkedin.com/company/leap-dex/"
     }
   }
 }
