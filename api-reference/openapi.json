@@ -1,0 +1,2054 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Global Connect API - Complete Reference",
+    "description": "Complete API documentation for the Global Connect Service - a unified platform for customer onboarding\nacross energy programs and transmission regions.\n\n## Overview\nThe Global Connect API enables partners to create session-based, multi-step onboarding flows for customers\nenrolling in energy grid services programs. Each session dynamically generates steps based on transmission\nregion, customer classification, and program requirements.\n\n## Key Features\n- **Dynamic flow generation** based on program requirements\n- **Session-based state management** with context accumulation\n- **Step-by-step validation** with detailed error messages\n- **Agreement management** including e-signature integration\n- **Utility authorization** via OAuth flows\n- **Template support** for partner-specific field defaults\n- **Connection tracking** for monitoring enrollment status\n",
+    "contact": {
+      "email": "apiteam@leap.energy"
+    },
+    "version": "1.1.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.staging.leap.energy",
+      "description": "Staging environment"
+    },
+    {
+      "url": "https://api.leap.energy",
+      "description": "Production environment"
+    }
+  ],
+  "tags": [
+    {
+      "name": "sessions",
+      "description": "Session lifecycle management"
+    },
+    {
+      "name": "agreements",
+      "description": "Agreement and e-signature handling"
+    },
+    {
+      "name": "templates",
+      "description": "Partner template management"
+    },
+    {
+      "name": "connections",
+      "description": "Connection status tracking"
+    },
+    {
+      "name": "internal",
+      "description": "Internal administration endpoints"
+    }
+  ],
+  "paths": {
+    "/v1.1/global-connect/session": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Start a new session",
+        "description": "Creates a new onboarding session with a dynamically generated flow based on the transmission region,\ncustomer classification, and optional program identifier. Returns the session ID and first step.\n",
+        "operationId": "startNewSession",
+        "parameters": [
+          {
+            "name": "transmission_region",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TransmissionRegion"
+            }
+          },
+          {
+            "name": "program_identifier",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "pjm-capacity-residential"
+            }
+          },
+          {
+            "name": "customer_classification",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/CustomerClassification"
+            }
+          },
+          {
+            "name": "partner_reference",
+            "in": "query",
+            "description": "Partner's reference ID for this customer (used for connection tracking)",
+            "schema": {
+              "type": "string",
+              "example": "customer-12345"
+            }
+          },
+          {
+            "name": "partner_nickname",
+            "in": "query",
+            "required": true,
+            "description": "Partner identifier",
+            "schema": {
+              "type": "string",
+              "example": "LeapfrogPower"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully created a new session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOverviewResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/session/{session_id}": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Get session information",
+        "description": "Retrieve the current state of a session including current step, context, and agreements",
+        "operationId": "getSession",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session information retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOverviewResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Session has expired and is no longer available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseGone"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/session/{session_id}/context": {
+      "put": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Update session context",
+        "description": "Submit field values collected from the customer. Context is merged with existing values.\nUse ETag headers to prevent concurrent modification conflicts.\n",
+        "operationId": "updateContext",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Context updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session is already completed or closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseConflict"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Session has expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseGone"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "ETag mismatch - session was modified since last retrieval",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponsePreconditionFailed"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/session/{session_id}/validate": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Validate current step",
+        "description": "Check if the current session context satisfies all requirements to proceed to the next step.\nReturns validation status and specific reasons for any failures.\n",
+        "operationId": "validateContext",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validation completed (check isValid field for result)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session is already completed or closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseConflict"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Session has expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseGone"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/session/{session_id}/step": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Advance to next step",
+        "description": "Move the session to the next step in the flow. If this is the final step, the session\nstatus will change to COMPLETED. Steps with all fields pre-populated are automatically skipped.\n",
+        "operationId": "advanceStep",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session advanced successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session is already completed or closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseConflict"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Session has expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseGone"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Validation failed or ETag mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponsePreconditionFailed"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/session/{session_id}/close": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Close a session",
+        "description": "Manually close a session (e.g., when customer abandons the flow)",
+        "operationId": "closeSession",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session closed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOverviewResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session is already completed or closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseConflict"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Session has expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseGone"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/session/{session_id}/partner": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Get partner information",
+        "description": "Retrieve partner branding and redirect URLs for the session",
+        "operationId": "getSessionPartner",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Partner information retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Partner not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/session/{session_id}/agreement": {
+      "post": {
+        "tags": [
+          "agreements"
+        ],
+        "summary": "Create agreement",
+        "description": "Create a new agreement for the session (e.g., for e-signature flows)",
+        "operationId": "createAgreement",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgreementRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agreement created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session is already completed or closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseConflict"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Session has expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseGone"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "agreements"
+        ],
+        "summary": "Update agreement status",
+        "description": "Update the status of an existing agreement (e.g., mark as agreed or rejected)",
+        "operationId": "updateAgreement",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgreementRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agreement updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgreementResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session is already completed or closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseConflict"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Session has expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseGone"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "ETag mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponsePreconditionFailed"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/templates": {
+      "post": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Create a partner flow template",
+        "description": "Create a template with default field values for a specific partner, region, and program.\nWhen a session is created, matching template defaults will be pre-populated in the context.\n",
+        "operationId": "createTemplate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Template created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBadRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseUnauthorized"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "List partner flow templates",
+        "description": "Retrieve all templates for the authenticated partner",
+        "operationId": "listTemplates",
+        "responses": {
+          "200": {
+            "description": "Templates retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseUnauthorized"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/templates/{id}": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Get a template by ID",
+        "operationId": "getTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Template retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Template not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Update a template",
+        "operationId": "updateTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Template updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Template not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Delete a template",
+        "operationId": "deleteTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Template deleted successfully"
+          },
+          "404": {
+            "description": "Template not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseNotFound"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/connect/connection": {
+      "get": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Get connection statuses",
+        "description": "Query completed connections by partner reference ID and date filters.\nUsed to track enrollment status after session completion.\n",
+        "operationId": "getConnections",
+        "parameters": [
+          {
+            "name": "ref-id",
+            "in": "query",
+            "description": "Partner reference ID (from session creation)",
+            "schema": {
+              "type": "string",
+              "example": "customer-12345"
+            }
+          },
+          {
+            "name": "from-start-date-time",
+            "in": "query",
+            "description": "Filter connections started after this timestamp",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2023-01-01T07:00:00.000Z"
+            }
+          },
+          {
+            "name": "from-last-interaction-date-time",
+            "in": "query",
+            "description": "Filter connections with last interaction after this timestamp",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2023-01-01T07:00:00.000Z"
+            }
+          },
+          {
+            "name": "page-token",
+            "in": "query",
+            "description": "Pagination token from previous response",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page-size",
+            "in": "query",
+            "description": "Number of results per page",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "example": 10,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connections retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/internal/flow": {
+      "get": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "Get flows by filter criteria",
+        "description": "Retrieve flows matching the provided filters. Used for inspecting available flows\nand their step configurations. If no filters provided, returns all flows.\n",
+        "operationId": "getFlows",
+        "parameters": [
+          {
+            "name": "transmission_region",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/TransmissionRegion"
+            }
+          },
+          {
+            "name": "customer_classification",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/CustomerClassification"
+            }
+          },
+          {
+            "name": "program_identifier",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "pjm-capacity-residential"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flows retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/internal/migrate_sessions": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "Migrate legacy sessions",
+        "description": "Migrate sessions from the legacy onboarding-service to Global Connect",
+        "operationId": "migrateSessions",
+        "parameters": [
+          {
+            "name": "transmission_region",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TransmissionRegion"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of sessions to migrate",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Migration completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    },
+    "/v1.1/global-connect/internal/reindex": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "Trigger Elasticsearch reindex",
+        "description": "Reindex all sessions and authorizations to Elasticsearch. Supports optional filtering\nby partner UUID and partner reference for targeted reindexing.\n",
+        "operationId": "triggerReindex",
+        "parameters": [
+          {
+            "name": "partner_uuid",
+            "in": "query",
+            "description": "Filter reindexing to specific partner",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "partner_reference",
+            "in": "query",
+            "description": "Filter reindexing to specific partner reference",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reindex completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReindexResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "http": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SessionOverviewResponse": {
+        "required": [
+          "session_id",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique session identifier"
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Accumulated field values collected during the session"
+          },
+          "agreements": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Agreement"
+            },
+            "description": "Map of agreement keys to agreement statuses"
+          },
+          "step": {
+            "$ref": "#/components/schemas/Step",
+            "description": "Current step information (null if session completed)"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepSummary"
+            },
+            "description": "List of all steps in the flow"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SessionStatus"
+          },
+          "status_updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SessionResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "step": {
+            "$ref": "#/components/schemas/Step"
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/SessionStatus"
+          }
+        }
+      },
+      "SessionStatus": {
+        "type": "string",
+        "enum": [
+          "IN_PROGRESS",
+          "COMPLETED",
+          "CLOSED",
+          "EXITED_CONDITIONALLY",
+          "AWAITING_EXIT_CONFIRMATION"
+        ],
+        "description": "Session lifecycle status:\n- IN_PROGRESS: Active session, user navigating through steps\n- COMPLETED: All steps finished successfully\n- CLOSED: Session manually closed (abandoned)\n- EXITED_CONDITIONALLY: Special exit condition met\n- AWAITING_EXIT_CONFIRMATION: Waiting for external confirmation\n"
+      },
+      "Step": {
+        "type": "object",
+        "required": [
+          "component_id"
+        ],
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "description": "Unique identifier for this step's component",
+            "example": "us-address-v1"
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable label for this step",
+            "example": "Customer Address"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Field"
+            },
+            "description": "Fields to be collected in this step"
+          },
+          "component_attributes": {
+            "type": "object",
+            "description": "Component-specific configuration attributes. For example:\n- utility-authorization: contains supported_utilities list\n- agreement steps: contains agreement_keys list\n",
+            "properties": {
+              "agreement_keys": {
+                "type": "array",
+                "description": "Required agreements for this step",
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true
+              },
+              "supported_utilities": {
+                "type": "array",
+                "description": "Utilities available for authorization",
+                "items": {
+                  "$ref": "#/components/schemas/Utility"
+                },
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "StepSummary": {
+        "type": "object",
+        "properties": {
+          "component_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "Field": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "nullable"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique field identifier (dot-notation, e.g., customer.street_1)",
+            "example": "customer.street_1"
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable field label",
+            "example": "Street Address"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed field description"
+          },
+          "type": {
+            "$ref": "#/components/schemas/FieldType"
+          },
+          "nullable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether this field can be null/empty"
+          },
+          "enum_values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Allowed values for enum type fields"
+          },
+          "maximum": {
+            "type": "number",
+            "description": "Maximum value for number fields"
+          },
+          "minimum": {
+            "type": "number",
+            "description": "Minimum value for number fields"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "uuid"
+            ],
+            "description": "Special format constraint"
+          },
+          "pattern": {
+            "type": "string",
+            "description": "Regex pattern for validation",
+            "example": "^[0-9]{5}(?:-[0-9]{4})?$"
+          },
+          "patternExplanation": {
+            "type": "string",
+            "description": "Human-readable explanation of the pattern",
+            "example": "Valid US ZIP code (5 digits or ZIP+4)"
+          },
+          "example": {
+            "type": "string",
+            "description": "Example value"
+          },
+          "maxLength": {
+            "type": "integer",
+            "description": "Maximum string length"
+          },
+          "minLength": {
+            "type": "integer",
+            "description": "Minimum string length"
+          }
+        }
+      },
+      "FieldType": {
+        "type": "string",
+        "enum": [
+          "string",
+          "number",
+          "boolean",
+          "enum"
+        ]
+      },
+      "UpdateContextRequest": {
+        "type": "object",
+        "required": [
+          "input"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Map of field IDs to values",
+            "example": {
+              "customer.street_1": "123 Main St",
+              "customer.city": "Austin",
+              "customer.postal_code": "78701"
+            }
+          }
+        }
+      },
+      "ValidateResponse": {
+        "type": "object",
+        "required": [
+          "isValid",
+          "reasons"
+        ],
+        "properties": {
+          "isValid": {
+            "type": "boolean",
+            "description": "Whether current context satisfies all step requirements"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationReason"
+            },
+            "description": "List of validation failures (empty if valid)"
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Current session context"
+          }
+        }
+      },
+      "ValidationReason": {
+        "type": "object",
+        "required": [
+          "code",
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Human-readable validation failure message"
+          },
+          "code": {
+            "$ref": "#/components/schemas/ValidationCode"
+          }
+        }
+      },
+      "ValidationCode": {
+        "type": "string",
+        "enum": [
+          "ADDRESS_FOUND",
+          "ADDRESS_NOT_FOUND",
+          "INACTIVE_ACCOUNT",
+          "INCOMPLETE_ADDRESS",
+          "INVALID_ADDRESS_STATE",
+          "MISSING_FIELD",
+          "INVALID_FIELD_CONTENTS",
+          "MISSING_AGREEMENT",
+          "ACCOUNT_FOUND",
+          "ACCOUNT_NOT_FOUND"
+        ],
+        "description": "Validation error codes:\n- ADDRESS_FOUND/NOT_FOUND: Address validation results\n- INACTIVE_ACCOUNT: Utility account is inactive\n- INCOMPLETE_ADDRESS: Missing required address fields\n- INVALID_ADDRESS_STATE: Address state doesn't match transmission region\n- MISSING_FIELD: Required field not provided\n- INVALID_FIELD_CONTENTS: Field value doesn't meet constraints\n- MISSING_AGREEMENT: Required agreement not completed\n- ACCOUNT_FOUND/NOT_FOUND: Utility account validation results\n"
+      },
+      "Agreement": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/AgreementStatus"
+          },
+          "responded_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the agreement was responded to"
+          }
+        }
+      },
+      "AgreementStatus": {
+        "type": "string",
+        "enum": [
+          "NOT_ANSWERED",
+          "AGREED",
+          "REJECTED"
+        ]
+      },
+      "CreateAgreementRequest": {
+        "type": "object",
+        "required": [
+          "agreement_key"
+        ],
+        "properties": {
+          "agreement_key": {
+            "type": "string",
+            "description": "Unique identifier for the agreement type",
+            "example": "pjm-one-click-agreement-v1"
+          }
+        }
+      },
+      "UpdateAgreementRequest": {
+        "type": "object",
+        "required": [
+          "agreement_key",
+          "agreement_status"
+        ],
+        "properties": {
+          "agreement_key": {
+            "type": "string",
+            "example": "pjm-one-click-agreement-v1"
+          },
+          "agreement_status": {
+            "$ref": "#/components/schemas/AgreementStatus"
+          }
+        }
+      },
+      "AgreementResponse": {
+        "type": "object",
+        "properties": {
+          "agreement_key": {
+            "type": "string",
+            "example": "pjm-one-click-agreement-v1"
+          },
+          "agreement_status": {
+            "$ref": "#/components/schemas/AgreementStatus"
+          },
+          "esign_contract": {
+            "$ref": "#/components/schemas/ESignContract",
+            "nullable": true,
+            "description": "E-signature contract details (if applicable)"
+          }
+        }
+      },
+      "ESignContract": {
+        "description": "E-signature contract details (HelloSign integration)",
+        "type": "object",
+        "required": [
+          "url",
+          "expires_at"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to the e-signature interface"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the signature URL expires"
+          }
+        }
+      },
+      "CreateTemplateRequest": {
+        "type": "object",
+        "required": [
+          "partner_id",
+          "transmission_region",
+          "customer_classification"
+        ],
+        "properties": {
+          "partner_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID of the partner this template belongs to"
+          },
+          "program_identifier": {
+            "type": "string",
+            "description": "Optional program identifier",
+            "example": "pjm-capacity-residential"
+          },
+          "transmission_region": {
+            "$ref": "#/components/schemas/TransmissionRegion"
+          },
+          "customer_classification": {
+            "$ref": "#/components/schemas/CustomerClassification"
+          },
+          "field_defaults": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Map of default field values to pre-populate in new sessions.\nValues can be strings, numbers, booleans, arrays, or objects.\n",
+            "example": {
+              "load_type": "HVAC",
+              "meter_type": "SMART_METER",
+              "customer.state_or_province_code": "PA"
+            }
+          }
+        }
+      },
+      "UpdateTemplateRequest": {
+        "type": "object",
+        "properties": {
+          "transmission_region": {
+            "$ref": "#/components/schemas/TransmissionRegion"
+          },
+          "customer_classification": {
+            "$ref": "#/components/schemas/CustomerClassification"
+          },
+          "field_defaults": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "TemplateResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "partnerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "program_identifier": {
+            "type": "string"
+          },
+          "transmission_region": {
+            "$ref": "#/components/schemas/TransmissionRegion"
+          },
+          "customer_classification": {
+            "$ref": "#/components/schemas/CustomerClassification"
+          },
+          "field_defaults": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "ConnectionsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "totalHits",
+          "onboardingConnections"
+        ],
+        "properties": {
+          "totalHits": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total number of matching connections"
+          },
+          "nextPageToken": {
+            "type": "string",
+            "nullable": true,
+            "description": "Token for fetching next page of results"
+          },
+          "onboardingConnections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionDocument"
+            }
+          }
+        }
+      },
+      "ConnectionDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "transmission_region",
+          "ref_id",
+          "connection_status",
+          "utility_connections",
+          "agreements"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Connection document ID"
+          },
+          "transmission_region": {
+            "$ref": "#/components/schemas/TransmissionRegion"
+          },
+          "ref_id": {
+            "type": "string",
+            "description": "Partner reference ID"
+          },
+          "start_date_time_utc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_interaction_date_time_utc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "connection_status": {
+            "$ref": "#/components/schemas/ConnectionStatusResponse"
+          },
+          "utility_connections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UtilityConnection"
+            }
+          },
+          "agreements": {
+            "$ref": "#/components/schemas/Agreements"
+          }
+        }
+      },
+      "ConnectionStatusResponse": {
+        "type": "string",
+        "enum": [
+          "NOT_STARTED",
+          "PARTIAL",
+          "COMPLETED",
+          "ERROR"
+        ],
+        "description": "Overall connection enrollment status:\n- NOT_STARTED: Session created but no progress\n- PARTIAL: Some requirements completed\n- COMPLETED: All requirements satisfied\n- ERROR: Error occurred during enrollment\n"
+      },
+      "UtilityConnection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "utility_name",
+          "utility_is_required",
+          "status",
+          "start_date_time_utc",
+          "last_interaction_date_time_utc"
+        ],
+        "properties": {
+          "authorization_uuid": {
+            "type": "string",
+            "nullable": true,
+            "description": "UUID of the utility authorization"
+          },
+          "utility_name": {
+            "type": "string",
+            "description": "Name of the utility"
+          },
+          "utility_is_required": {
+            "type": "boolean",
+            "description": "Whether this utility authorization is required"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthorizationStatus"
+          },
+          "error_code": {
+            "$ref": "#/components/schemas/ErrorCodeResponse",
+            "nullable": true
+          },
+          "start_date_time_utc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_interaction_date_time_utc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "AuthorizationStatus": {
+        "type": "string",
+        "enum": [
+          "NOT_CONNECTED",
+          "CONNECTED",
+          "ERROR"
+        ]
+      },
+      "ErrorCodeResponse": {
+        "type": "string",
+        "description": "Utility authorization error codes:\n- TECHNICAL_ERROR: Internal system issue (monitor leapenergy.freshstatus.io)\n- UTILITY_ERROR: Utility system outage (monitor leapenergy.freshstatus.io)\n- USER_CANCELED: User canceled or declined authorization\n- USER_INVALID_CREDENTIALS: Invalid utility login credentials\n- USER_INELIGIBLE: Account not eligible for program\n- AUTH_MFA_ERROR: Multi-factor authentication issue\n",
+        "enum": [
+          "TECHNICAL_ERROR",
+          "UTILITY_ERROR",
+          "USER_CANCELED",
+          "USER_INVALID_CREDENTIALS",
+          "USER_INELIGIBLE",
+          "AUTH_MFA_ERROR"
+        ]
+      },
+      "Agreements": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "prohibited_resource_attestation_status",
+          "demand_response_participation_agreement_status",
+          "generator_status"
+        ],
+        "properties": {
+          "prohibited_resource_attestation_status": {
+            "$ref": "#/components/schemas/ProhibitedResourceAttestationStatusResponse"
+          },
+          "demand_response_participation_agreement_status": {
+            "$ref": "#/components/schemas/DemandResponseParticipationAgreementStatusResponse"
+          },
+          "generator_status": {
+            "$ref": "#/components/schemas/GeneratorStatusResponse"
+          }
+        }
+      },
+      "ProhibitedResourceAttestationStatusResponse": {
+        "type": "string",
+        "enum": [
+          "COMPLETED",
+          "NOT_ANSWERED",
+          "NOT_REQUIRED"
+        ]
+      },
+      "DemandResponseParticipationAgreementStatusResponse": {
+        "type": "string",
+        "enum": [
+          "COMPLETED",
+          "NOT_ANSWERED",
+          "NOT_REQUIRED",
+          "DECLINED"
+        ]
+      },
+      "GeneratorStatusResponse": {
+        "type": "string",
+        "enum": [
+          "NO_GENERATOR_ONSITE",
+          "YES_GENERATOR_ONSITE",
+          "NOT_ANSWERED",
+          "NOT_REQUIRED"
+        ]
+      },
+      "Utility": {
+        "type": "object",
+        "required": [
+          "uuid",
+          "longName",
+          "connectionRedirectionType"
+        ],
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "longName": {
+            "type": "string",
+            "description": "Full utility name",
+            "example": "PECO Energy"
+          },
+          "connectionUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL for utility OAuth flow"
+          },
+          "logoUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Utility logo image URL"
+          },
+          "connectionRedirectionType": {
+            "type": "string",
+            "enum": [
+              "IFRAME",
+              "FULL_PAGE"
+            ],
+            "description": "How to present the utility authorization flow"
+          },
+          "scheduledMaintenance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UtilityOutage"
+            },
+            "nullable": true,
+            "description": "Scheduled maintenance windows"
+          }
+        }
+      },
+      "UtilityOutage": {
+        "type": "object",
+        "required": [
+          "startDate",
+          "endDate"
+        ],
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TransmissionRegion": {
+        "type": "string",
+        "enum": [
+          "CAISO",
+          "ERCOT",
+          "NYISO",
+          "ISONE",
+          "PJM"
+        ],
+        "description": "US electricity transmission regions:\n- CAISO: California\n- ERCOT: Texas\n- NYISO: New York\n- ISONE: New England\n- PJM: Mid-Atlantic and Midwest\n"
+      },
+      "CustomerClassification": {
+        "type": "string",
+        "enum": [
+          "RESIDENTIAL",
+          "COMMERCIAL"
+        ],
+        "description": "Whether the customer is residential (home) or commercial (business)"
+      },
+      "PartnerResponse": {
+        "required": [
+          "name",
+          "nickname",
+          "thank_you_url",
+          "error_page_url"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Leap Frog Power"
+          },
+          "nickname": {
+            "type": "string",
+            "example": "LeapFrog"
+          },
+          "logo_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "thank_you_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to redirect after successful completion"
+          },
+          "error_page_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to redirect on error"
+          }
+        }
+      },
+      "FlowsResponse": {
+        "type": "object",
+        "properties": {
+          "flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlowResponse"
+            }
+          }
+        }
+      },
+      "FlowResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "object",
+            "properties": {
+              "transmission_region": {
+                "$ref": "#/components/schemas/TransmissionRegion"
+              },
+              "customerClassification": {
+                "$ref": "#/components/schemas/CustomerClassification"
+              },
+              "program_identifier": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Step"
+            }
+          }
+        }
+      },
+      "MigrationResponse": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "Number of sessions migrated"
+          }
+        }
+      },
+      "ReindexResponse": {
+        "type": "object",
+        "properties": {
+          "processed_count": {
+            "type": "integer",
+            "description": "Number of connection documents processed"
+          },
+          "error_count": {
+            "type": "integer",
+            "description": "Number of batches that failed"
+          }
+        }
+      },
+      "ErrorResponseNotFound": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponseGone": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expired_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ErrorResponseConflict": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponsePreconditionFailed": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Session version mismatch"
+          }
+        }
+      },
+      "ErrorResponseBadRequest": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponseUnauthorized": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "http": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token for authentication (Auth0)"
+      }
+    }
+  }
+}

@@ -1,0 +1,210 @@
+---
+title: 'API Reference'
+description: 'Complete API documentation for the Global Connect Service'
+---
+
+## Overview
+
+The Global Connect API provides RESTful endpoints for managing customer onboarding sessions for energy grid services programs. All endpoints return JSON responses and require authentication via JWT bearer tokens.
+
+## Base URL
+
+**Production:**
+```
+https://api.leap.energy
+```
+
+**Staging:**
+```
+https://api.staging.leap.energy
+```
+
+## Authentication
+
+All API endpoints require authentication using JWT bearer tokens issued by Auth0.
+
+Include your token in the `Authorization` header with each request:
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+### Getting a Token
+
+Contact your Leap Energy integration team to obtain Auth0 credentials for your partner account. You'll receive:
+- Client ID
+- Client Secret
+- Auth0 domain
+
+Use these credentials to obtain JWT tokens via the Auth0 authentication flow.
+
+## API Structure
+
+The API is organized into five main endpoint groups:
+
+### Sessions
+
+Core session lifecycle management endpoints for creating and managing onboarding flows.
+
+**Key Operations:**
+- `POST /v1.1/global-connect/session` - Create a new session
+- `GET /v1.1/global-connect/session/{session_id}` - Get session details
+- `PUT /v1.1/global-connect/session/{session_id}/context` - Update field values
+- `POST /v1.1/global-connect/session/{session_id}/validate` - Validate current step
+- `POST /v1.1/global-connect/session/{session_id}/step` - Advance to next step
+- `POST /v1.1/global-connect/session/{session_id}/close` - Close session
+
+### Agreements
+
+Manage customer agreements and e-signature workflows.
+
+**Key Operations:**
+- `POST /v1.1/global-connect/session/{session_id}/agreement` - Create agreement
+- `PUT /v1.1/global-connect/session/{session_id}/agreement` - Update agreement status
+
+### Templates
+
+Configure partner-specific default field values for sessions.
+
+**Key Operations:**
+- `POST /v1.1/global-connect/templates` - Create template
+- `GET /v1.1/global-connect/templates` - List templates
+- `GET /v1.1/global-connect/templates/{id}` - Get template
+- `PUT /v1.1/global-connect/templates/{id}` - Update template
+- `DELETE /v1.1/global-connect/templates/{id}` - Delete template
+
+### Connections
+
+Query enrollment status and track connection progress after session completion.
+
+**Key Operations:**
+- `GET /v1.1/connect/connection` - Query connection status
+
+## Response Formats
+
+### Success Responses
+
+Successful requests return HTTP 200 (or 201 for creation) with a JSON body:
+
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "IN_PROGRESS",
+  "step": {...},
+  "context": {...}
+}
+```
+
+### Error Responses
+
+Error responses include an HTTP status code and error message:
+
+```json
+{
+  "message": "Session not found"
+}
+```
+
+## Common HTTP Status Codes
+
+- **200 OK** - Request successful
+- **201 Created** - Resource created successfully
+- **204 No Content** - Successful deletion
+- **400 Bad Request** - Invalid request parameters
+- **401 Unauthorized** - Missing or invalid authentication token
+- **403 Forbidden** - Insufficient permissions
+- **404 Not Found** - Resource doesn't exist
+- **409 Conflict** - Session already completed or closed
+- **410 Gone** - Session expired and no longer available
+- **412 Precondition Failed** - Validation failed or ETag mismatch
+
+## Key Concepts
+
+### Session Lifecycle
+
+Sessions progress through several states:
+1. **IN_PROGRESS** - Active session, collecting customer data
+2. **COMPLETED** - All steps finished successfully
+3. **CLOSED** - Manually closed (e.g., customer abandoned)
+4. **EXITED_CONDITIONALLY** - Special exit condition met
+5. **AWAITING_EXIT_CONFIRMATION** - Waiting for external confirmation
+
+### ETag Concurrency Control
+
+Context updates support ETags to prevent race conditions. When updating context:
+- The response includes an `ETag` header
+- Include `If-Match` header with the ETag value on subsequent updates
+- If the session was modified elsewhere, you'll receive HTTP 412
+
+### Pagination
+
+Endpoints returning lists support pagination via query parameters:
+- `page-size` - Number of results per page (default: 10)
+- `page-token` - Token from previous response for next page
+
+Response includes `nextPageToken` when more results are available.
+
+## Transmission Regions
+
+The API supports the following US electricity transmission regions:
+
+- **CAISO** - California Independent System Operator
+- **ERCOT** - Electric Reliability Council of Texas
+- **NYISO** - New York Independent System Operator
+- **ISONE** - ISO New England
+- **PJM** - PJM Interconnection (Mid-Atlantic and Midwest)
+
+## Customer Classifications
+
+- **RESIDENTIAL** - Home/residential customers
+- **COMMERCIAL** - Business/commercial customers
+
+Different classifications may result in different flow steps and field requirements.
+
+## Rate Limits
+
+API requests are subject to rate limiting to ensure service stability. Rate limit headers are included in responses:
+
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 99
+X-RateLimit-Reset: 1609459200
+```
+
+If you exceed rate limits, you'll receive HTTP 429 (Too Many Requests).
+
+## Best Practices
+
+### Session Management
+
+1. **Save session IDs** - Store session IDs in your database to allow users to resume sessions
+2. **Handle expiration** - Implement proper error handling for 410 Gone responses
+3. **Use validation** - Always validate before advancing to catch errors early
+4. **Monitor context** - Track accumulated context to avoid re-prompting for data
+
+### Error Handling
+
+1. **Check validation reasons** - Parse the `reasons` array to provide specific user guidance
+2. **Retry logic** - Implement exponential backoff for transient errors
+3. **Log errors** - Capture error responses for debugging and monitoring
+
+### Templates
+
+1. **Pre-populate known data** - Use templates to reduce user friction
+2. **Region-specific defaults** - Create templates per transmission region
+3. **Keep updated** - Regularly review and update template values
+
+## Support
+
+For technical support, integration questions, or to report issues:
+
+- **Email:** apiteam@leap.energy
+- **Status Page:** https://leapenergy.freshstatus.io
+
+## Changelog
+
+**v1.1.0** - Current version
+- Complete merged API specification
+- Support for all transmission regions
+- Template management
+- Connection status tracking

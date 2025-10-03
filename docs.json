@@ -1,0 +1,135 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Global Connect API",
+  "openapi": "api-reference/openapi.json",
+  "colors": {
+    "primary": "#0EA5E9",
+    "light": "#38BDF8",
+    "dark": "#0284C7"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "index",
+              "quickstart",
+              "development"
+            ]
+          },
+          {
+            "group": "AI Tools",
+            "pages": [
+              "ai-tools/cursor",
+              "ai-tools/claude-code",
+              "ai-tools/windsurf"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/introduction"
+            ]
+          },
+          {
+            "group": "Sessions",
+            "pages": [
+              "api-reference/startNewSession",
+              "api-reference/getSession",
+              "api-reference/updateContext",
+              "api-reference/validateContext",
+              "api-reference/advanceStep",
+              "api-reference/closeSession",
+              "api-reference/getSessionPartner"
+            ]
+          },
+          {
+            "group": "Agreements",
+            "pages": [
+              "api-reference/createAgreement",
+              "api-reference/updateAgreement"
+            ]
+          },
+          {
+            "group": "Templates",
+            "pages": [
+              "api-reference/createTemplate",
+              "api-reference/listTemplates",
+              "api-reference/getTemplate",
+              "api-reference/updateTemplate",
+              "api-reference/deleteTemplate"
+            ]
+          },
+          {
+            "group": "Connections",
+            "pages": [
+              "api-reference/getConnections"
+            ]
+          },
+          {
+            "group": "Internal",
+            "pages": [
+              "api-reference/getFlows",
+              "api-reference/migrateSessions",
+              "api-reference/triggerReindex"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "API Status",
+          "href": "https://leapenergy.freshstatus.io",
+          "icon": "signal-bars"
+        },
+        {
+          "anchor": "Support",
+          "href": "mailto:apiteam@leap.energy",
+          "icon": "envelope"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "href": "mailto:apiteam@leap.energy"
+      }
+    ]
+  },
+  "contextual": {
+    "options": [
+     "copy",
+     "view",
+     "chatgpt",
+     "claude",
+     "perplexity",
+     "mcp",
+     "cursor",
+     "vscode"
+   ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/leapgroupenergy",
+      "linkedin": "https://linkedin.com/company/leap-energy"
+    }
+  }
+}

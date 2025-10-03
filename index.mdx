@@ -1,0 +1,111 @@
+---
+title: "Global Connect API"
+description: "Session-based customer onboarding for energy grid services programs"
+---
+
+## Overview
+
+The Global Connect API enables partners to create dynamic, multi-step onboarding flows for customers enrolling in energy grid services programs. Each session automatically generates the appropriate steps based on transmission region, customer classification, and program requirements.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Dynamic Flow Generation" icon="diagram-project">
+    Flows automatically adapt based on transmission region (PJM, ERCOT, CAISO, etc.), customer type (residential/commercial), and program requirements
+  </Card>
+  <Card title="Session-Based State" icon="database">
+    Each customer onboarding creates a unique session that tracks progress and accumulates data as users complete steps
+  </Card>
+  <Card title="Step-by-Step Validation" icon="circle-check">
+    Validate customer input at each step with detailed error messages before advancing to the next step
+  </Card>
+  <Card title="Agreement Management" icon="file-signature">
+    Handle customer agreements including e-signature workflows via integrated providers
+  </Card>
+  <Card title="Utility Authorization" icon="bolt">
+    OAuth flows for connecting utility accounts with support for multiple transmission regions
+  </Card>
+  <Card title="Template Support" icon="sliders">
+    Pre-configure default field values for specific partners, regions, and programs
+  </Card>
+</CardGroup>
+
+## How It Works
+
+The Global Connect API uses a session-based workflow:
+
+1. **Create a session** with transmission region, customer classification, and optional program identifier
+2. **Collect customer data** by updating the session context with field values
+3. **Validate each step** to ensure all requirements are met before advancing
+4. **Advance through steps** - the API automatically skips steps with pre-populated fields
+5. **Track completion** - query connection status after enrollment is finished
+
+## Core Concepts
+
+### Sessions
+
+A session represents a single customer onboarding journey. Sessions maintain state through:
+- **Context**: Accumulated field values collected from the customer
+- **Current Step**: The active step requiring user input
+- **Agreements**: Status of required customer agreements
+- **Status**: Lifecycle state (IN_PROGRESS, COMPLETED, CLOSED)
+
+### Dynamic Steps
+
+Steps are generated dynamically based on program requirements. For example:
+- PJM Capacity programs require different fields than ERCOT ERS programs
+- Commercial customers may have different requirements than residential
+- Steps with all required fields already populated are automatically skipped
+
+### Context Accumulation
+
+Field values accumulate in the session context as the user progresses. Context is:
+- Merged with each update (new values supplement existing ones)
+- Protected by ETag concurrency control to prevent conflicts
+- Validated against step requirements before advancement
+
+## API Organization
+
+The API is organized into five main areas:
+
+<CardGroup cols={2}>
+  <Card title="Sessions" icon="arrow-progress" href="/api-reference/sessions">
+    Core lifecycle management: create, get, update context, validate, advance, close
+  </Card>
+  <Card title="Agreements" icon="file-contract" href="/api-reference/agreements">
+    Agreement creation, status updates, and e-signature integration
+  </Card>
+  <Card title="Templates" icon="layer-group" href="/api-reference/templates">
+    Partner-specific configuration and default field values
+  </Card>
+  <Card title="Connections" icon="chart-line" href="/api-reference/connections">
+    Query enrollment status and track connection progress
+  </Card>
+</CardGroup>
+
+## Get Started
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart" horizontal>
+  Build your first onboarding session in minutes
+</Card>
+
+## Authentication
+
+All API endpoints require authentication using JWT bearer tokens via Auth0.
+
+Include your token in the Authorization header:
+
+```bash
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+## Base URL
+
+```
+https://api.leap.energy
+```
+
+Staging environment available at:
+```
+https://api.staging.leap.energy
+```

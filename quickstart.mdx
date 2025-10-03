@@ -1,0 +1,310 @@
+---
+title: "Quickstart"
+description: "Build your first onboarding session in minutes"
+---
+
+## Overview
+
+This guide walks you through creating a complete customer onboarding session using the Global Connect API. You'll learn how to create a session, collect customer data, validate inputs, and advance through steps.
+
+## Prerequisites
+
+<Info>
+  **Before you begin:**
+  - Obtain a JWT bearer token from Auth0 for authentication
+  - Have your partner nickname ready (provided during onboarding)
+  - Choose a transmission region and customer classification for testing
+</Info>
+
+## Complete Flow Example
+
+### Step 1: Create a Session
+
+Start by creating a new onboarding session. The API will generate the appropriate flow based on your parameters.
+
+```bash
+curl -X POST "https://api.leap.energy/v1.1/global-connect/session?transmission_region=PJM&customer_classification=RESIDENTIAL&partner_nickname=YourPartnerName&partner_reference=customer-123" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "IN_PROGRESS",
+  "step": {
+    "component_id": "us-address-v1",
+    "label": "Customer Address",
+    "fields": [
+      {
+        "id": "customer.street_1",
+        "label": "Street Address",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "id": "customer.city",
+        "label": "City",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "id": "customer.state_or_province_code",
+        "label": "State",
+        "type": "string",
+        "nullable": false,
+        "pattern": "^[A-Z]{2}$"
+      },
+      {
+        "id": "customer.postal_code",
+        "label": "ZIP Code",
+        "type": "string",
+        "nullable": false,
+        "pattern": "^[0-9]{5}(?:-[0-9]{4})?$"
+      }
+    ]
+  },
+  "steps": [
+    {"component_id": "us-address-v1", "label": "Customer Address"},
+    {"component_id": "utility-authorization-v1", "label": "Utility Connection"},
+    {"component_id": "agreement-v1", "label": "Terms & Agreements"}
+  ],
+  "context": {},
+  "agreements": {}
+}
+```
+
+<Note>
+  Save the `session_id` - you'll need it for all subsequent requests.
+</Note>
+
+### Step 2: Update Session Context
+
+Submit customer data for the current step. The API merges your input with existing context.
+
+```bash
+curl -X PUT "https://api.leap.energy/v1.1/global-connect/session/550e8400-e29b-41d4-a716-446655440000/context" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "customer.street_1": "123 Main St",
+      "customer.city": "Philadelphia",
+      "customer.state_or_province_code": "PA",
+      "customer.postal_code": "19103"
+    }
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "status": "IN_PROGRESS",
+  "step": {
+    "component_id": "us-address-v1",
+    "label": "Customer Address",
+    "fields": [...]
+  },
+  "context": {
+    "customer.street_1": "123 Main St",
+    "customer.city": "Philadelphia",
+    "customer.state_or_province_code": "PA",
+    "customer.postal_code": "19103"
+  }
+}
+```
+
+### Step 3: Validate the Current Step
+
+Before advancing, validate that all requirements are met.
+
+```bash
+curl -X POST "https://api.leap.energy/v1.1/global-connect/session/550e8400-e29b-41d4-a716-446655440000/validate" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Success Response:**
+
+```json
+{
+  "isValid": true,
+  "reasons": [],
+  "context": {
+    "customer.street_1": "123 Main St",
+    "customer.city": "Philadelphia",
+    "customer.state_or_province_code": "PA",
+    "customer.postal_code": "19103"
+  }
+}
+```
+
+**Validation Failure Example:**
+
+```json
+{
+  "isValid": false,
+  "reasons": [
+    {
+      "code": "MISSING_FIELD",
+      "description": "Required field customer.postal_code is missing"
+    },
+    {
+      "code": "INVALID_FIELD_CONTENTS",
+      "description": "Field customer.state_or_province_code must match pattern ^[A-Z]{2}$"
+    }
+  ],
+  "context": {...}
+}
+```
+
+### Step 4: Advance to Next Step
+
+Once validation passes, advance to the next step in the flow.
+
+```bash
+curl -X POST "https://api.leap.energy/v1.1/global-connect/session/550e8400-e29b-41d4-a716-446655440000/step" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "status": "IN_PROGRESS",
+  "step": {
+    "component_id": "utility-authorization-v1",
+    "label": "Utility Connection",
+    "component_attributes": {
+      "supported_utilities": [
+        {
+          "uuid": "abc-123",
+          "longName": "PECO Energy",
+          "connectionUrl": "https://api.leap.energy/auth/utility/...",
+          "connectionRedirectionType": "IFRAME"
+        }
+      ]
+    },
+    "fields": [...]
+  },
+  "context": {...}
+}
+```
+
+<Tip>
+  Steps with all required fields already populated are automatically skipped. The API returns the next step requiring user input.
+</Tip>
+
+### Step 5: Repeat Until Complete
+
+Continue the update → validate → advance cycle until the session status becomes `COMPLETED`.
+
+When you advance from the final step:
+
+```json
+{
+  "status": "COMPLETED",
+  "step": null,
+  "context": {...}
+}
+```
+
+### Step 6: Track Connection Status
+
+After completion, query the connection status to track enrollment progress.
+
+```bash
+curl -X GET "https://api.leap.energy/v1.1/connect/connection?ref-id=customer-123" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "totalHits": 1,
+  "onboardingConnections": [
+    {
+      "id": "conn-123",
+      "transmission_region": "PJM",
+      "ref_id": "customer-123",
+      "connection_status": "COMPLETED",
+      "utility_connections": [
+        {
+          "utility_name": "PECO Energy",
+          "status": "CONNECTED",
+          "utility_is_required": true
+        }
+      ],
+      "agreements": {
+        "demand_response_participation_agreement_status": "COMPLETED"
+      }
+    }
+  ]
+}
+```
+
+## Key Concepts Demonstrated
+
+<CardGroup cols={2}>
+  <Card title="Session Lifecycle" icon="rotate">
+    Sessions progress through states: create → update → validate → advance → complete
+  </Card>
+  <Card title="Context Accumulation" icon="layer-group">
+    Field values accumulate with each update and persist throughout the session
+  </Card>
+  <Card title="Step Validation" icon="circle-check">
+    Validation provides specific error codes to guide users toward correct input
+  </Card>
+  <Card title="Dynamic Flows" icon="diagram-next">
+    The API automatically determines which steps are needed based on program requirements
+  </Card>
+</CardGroup>
+
+## Error Handling
+
+Common HTTP status codes you'll encounter:
+
+- **200**: Success
+- **404**: Session not found
+- **409**: Session already completed or closed
+- **410**: Session expired
+- **412**: Validation failed or ETag mismatch
+
+Example error response:
+
+```json
+{
+  "message": "Session is already completed"
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="/api-reference/introduction">
+    Explore all available endpoints and detailed schemas
+  </Card>
+  <Card title="Sessions" icon="arrow-progress" href="/api-reference/sessions">
+    Learn more about session management
+  </Card>
+  <Card title="Agreements" icon="file-signature" href="/api-reference/agreements">
+    Handle e-signature workflows
+  </Card>
+  <Card title="Templates" icon="sliders" href="/api-reference/templates">
+    Configure default field values for your partner
+  </Card>
+</CardGroup>
+
+## Development Environment
+
+Test your integration safely using the staging environment:
+
+```
+https://api.staging.leap.energy
+```
+
+<Warning>
+  Sessions expire after a period of inactivity. Save session IDs and implement proper error handling for 410 Gone responses.
+</Warning>
