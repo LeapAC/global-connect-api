@@ -22,6 +22,12 @@
             ]
           },
           {
+            "group": "Guides",
+            "pages": [
+              "guides/one-click-agreements"
+            ]
+          },
+          {
             "group": "AI Tools",
             "pages": [
               "ai-tools/cursor",

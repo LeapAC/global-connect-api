@@ -91,6 +91,14 @@
               "type": "string",
               "example": "LeapfrogPower"
             }
+          },
+          {
+            "name": "variant",
+            "in": "query",
+            "description": "[PROPOSED] Session variant that modifies the flow behavior. Use 'byod' (bring your own data) for streamlined agreement-only flows when customer data is already collected.",
+            "schema": {
+              "$ref": "#/components/schemas/SessionVariant"
+            }
           }
         ],
         "responses": {
@@ -1506,6 +1514,7 @@
       },
       "AgreementResponse": {
         "type": "object",
+        "description": "Agreement details including status and content. Either esign_contract or one_click_agreement will be populated, but not both.",
         "properties": {
           "agreement_key": {
             "type": "string",
@@ -1517,7 +1526,12 @@
           "esign_contract": {
             "$ref": "#/components/schemas/ESignContract",
             "nullable": true,
-            "description": "E-signature contract details (if applicable)"
+            "description": "E-signature contract details. Populated for agreements requiring formal e-signature. Null when one_click_agreement is present."
+          },
+          "one_click_agreement": {
+            "$ref": "#/components/schemas/OneClickAgreement",
+            "nullable": true,
+            "description": "[PROPOSED] One-click agreement content including title, summary, and full text. Populated for inline agreements that can be accepted directly. Null when esign_contract is present."
           }
         }
       },
@@ -1538,6 +1552,32 @@
             "type": "string",
             "format": "date-time",
             "description": "When the signature URL expires"
+          }
+        }
+      },
+      "OneClickAgreement": {
+        "type": "object",
+        "description": "[PROPOSED] One-click agreement details for inline display. Contains the full agreement text for partners to render in their own UI. Mutually exclusive with esign_contract.",
+        "required": [
+          "title",
+          "summary_text",
+          "full_text"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Agreement title for display",
+            "example": "Demand Response Program Agreement"
+          },
+          "summary_text": {
+            "type": "string",
+            "description": "Short-form summary of the agreement (Markdown formatted). Suitable for initial display before user expands to full text.",
+            "example": "By agreeing, you authorize the enrollment of your account in the demand response program and consent to the terms described in the full agreement."
+          },
+          "full_text": {
+            "type": "string",
+            "description": "Full agreement text (Markdown formatted). Should be displayed when user requests to see complete terms.",
+            "example": "# Terms and Conditions\n\n## 1. Authorization\n\nBy accepting this agreement, you authorize..."
           }
         }
       },
@@ -1889,6 +1929,13 @@
           "COMMERCIAL"
         ],
         "description": "Whether the customer is residential (home) or commercial (business)"
+      },
+      "SessionVariant": {
+        "type": "string",
+        "enum": [
+          "byod"
+        ],
+        "description": "[PROPOSED] Session variant types:\n- byod: Bring Your Own Data - simplified flow for partners who already have customer information. Returns only agreement steps, skipping data collection."
       },
       "PartnerResponse": {
         "required": [

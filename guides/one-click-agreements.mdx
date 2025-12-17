@@ -1,0 +1,348 @@
+---
+title: "One-Click Agreements"
+description: "Collect customer agreements directly in your app using the Connect API"
+---
+
+<Warning>
+  **EXPERIMENTAL** - This feature is currently in development. The API parameters and response schemas described in this guide are proposed and subject to change before release.
+</Warning>
+
+## Overview
+
+One-click agreements enable partners to collect customer consent for energy program enrollment directly within their own application. Instead of redirecting customers to a separate e-signature flow, partners can display agreement text in their UI and submit acceptance through the API.
+
+This is ideal for **Bring Your Own Data (BYOD)** scenarios where you already have customer information and only need to collect program agreements.
+
+## When to Use One-Click Agreements
+
+<CardGroup cols={2}>
+  <Card title="BYOD Flows" icon="database">
+    You already have customer data (name, address, utility info) and only need agreement acceptance
+  </Card>
+  <Card title="Point-of-Sale" icon="store">
+    Collecting agreements during an in-person or online purchase flow
+  </Card>
+  <Card title="Embedded Experience" icon="window-maximize">
+    You want full control over the agreement UI within your application
+  </Card>
+  <Card title="Streamlined Onboarding" icon="bolt">
+    Minimize steps for customers who have already provided their information
+  </Card>
+</CardGroup>
+
+## How It Works
+
+1. Create a session with `variant=byod` to get a streamlined agreement-only flow
+2. Create an agreement to retrieve the agreement content (title, summary, full text)
+3. Display the agreement in your UI
+4. Submit the customer's acceptance via the API
+5. Track completion via webhooks or the Connections API
+
+## Prerequisites
+
+<Info>
+  **Before you begin:**
+  - Obtain API credentials (JWT bearer token via Auth0)
+  - Have your partner nickname ready
+  - Know the transmission region and customer classification
+  - Have customer data ready to submit (if required by your program)
+</Info>
+
+## Implementation Guide
+
+### Step 1: Create a BYOD Session
+
+Create a session with the `variant=byod` parameter to get a streamlined flow that skips data collection steps.
+
+```bash
+curl -X POST "https://api.leap.energy/v1.1/global-connect/session?transmission_region=PJM&customer_classification=RESIDENTIAL&partner_nickname=YourPartnerName&partner_reference=customer-123&variant=byod" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "IN_PROGRESS",
+  "step": {
+    "component_id": "one-click-agreement-v1",
+    "label": "Program Agreement",
+    "component_attributes": {
+      "agreement_keys": ["pjm-capacity-agreement-v1"]
+    }
+  },
+  "steps": [
+    {"component_id": "one-click-agreement-v1", "label": "Program Agreement"}
+  ],
+  "context": {},
+  "agreements": {}
+}
+```
+
+<Note>
+  With `variant=byod`, the session flow contains only agreement steps. Data collection steps are skipped, assuming you'll provide customer data separately or it's already on file.
+</Note>
+
+### Step 2: Create the Agreement
+
+Use the agreement key from the step's `component_attributes` to create an agreement and retrieve its content.
+
+```bash
+curl -X POST "https://api.leap.energy/v1.1/global-connect/session/550e8400-e29b-41d4-a716-446655440000/agreement" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agreement_key": "pjm-capacity-agreement-v1"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "agreement_key": "pjm-capacity-agreement-v1",
+  "agreement_status": "NOT_ANSWERED",
+  "one_click_agreement": {
+    "title": "Demand Response Program Agreement",
+    "summary_text": "By agreeing, you authorize the enrollment of your account in the demand response program operated by YourPartnerName. You consent to participate in energy reduction events and agree to the terms described in the full agreement.",
+    "full_text": "# Demand Response Program Agreement\n\n## 1. Authorization\n\nBy accepting this agreement, you authorize YourPartnerName to:\n\n- Enroll your electricity account in the PJM demand response program\n- Receive notifications about energy reduction events\n- Participate in demand response activities\n\n## 2. Program Participation\n\nAs a participant, you agree to:\n\n- Reduce your energy consumption during notified events when possible\n- Allow your enrolled devices to be controlled during events (if applicable)\n- Receive program communications via email or SMS\n\n## 3. Compensation\n\nYou may be eligible to receive compensation for your participation based on your actual energy reduction during events.\n\n## 4. Term and Termination\n\nThis agreement remains in effect until terminated by either party with 30 days written notice."
+  },
+  "esign_contract": null
+}
+```
+
+<Tip>
+  The `summary_text` and `full_text` fields are Markdown formatted. Render them appropriately in your UI for proper formatting of headers, lists, and emphasis.
+</Tip>
+
+### Step 3: Display the Agreement
+
+Use the response to display the agreement in your application:
+
+- **Title**: Display as a heading
+- **Summary Text**: Show initially as a brief overview
+- **Full Text**: Display when the user clicks "View Full Terms" or similar
+
+**Recommended UI Pattern:**
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Demand Response Program Agreement                  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  By agreeing, you authorize the enrollment of your  │
+│  account in the demand response program operated    │
+│  by YourPartnerName...                              │
+│                                                     │
+│  [View Full Agreement]                              │
+│                                                     │
+│  ┌──────────────────────────────────────────────┐  │
+│  │ [ ] I agree to the terms and conditions      │  │
+│  └──────────────────────────────────────────────┘  │
+│                                                     │
+│              [Continue]                             │
+└─────────────────────────────────────────────────────┘
+```
+
+### Step 4: Submit Agreement Acceptance
+
+When the customer accepts, update the agreement status:
+
+```bash
+curl -X PUT "https://api.leap.energy/v1.1/global-connect/session/550e8400-e29b-41d4-a716-446655440000/agreement" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agreement_key": "pjm-capacity-agreement-v1",
+    "agreement_status": "AGREED"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "agreement_key": "pjm-capacity-agreement-v1",
+  "agreement_status": "AGREED",
+  "one_click_agreement": {
+    "title": "Demand Response Program Agreement",
+    "summary_text": "...",
+    "full_text": "..."
+  },
+  "esign_contract": null
+}
+```
+
+### Step 5: Advance and Complete the Session
+
+After all agreements are accepted, advance the session to complete it:
+
+```bash
+curl -X POST "https://api.leap.energy/v1.1/global-connect/session/550e8400-e29b-41d4-a716-446655440000/step" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "status": "COMPLETED",
+  "step": null,
+  "context": {}
+}
+```
+
+### Step 6: Track Results
+
+Query the Connections API to verify the enrollment status:
+
+```bash
+curl -X GET "https://api.leap.energy/v1.1/connect/connection?ref-id=customer-123" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "totalHits": 1,
+  "onboardingConnections": [
+    {
+      "id": "conn-456",
+      "transmission_region": "PJM",
+      "ref_id": "customer-123",
+      "connection_status": "COMPLETED",
+      "agreements": {
+        "demand_response_participation_agreement_status": "COMPLETED"
+      }
+    }
+  ]
+}
+```
+
+## Complete Example
+
+Here's the full flow in a single script:
+
+```bash
+# 1. Create BYOD session
+SESSION_RESPONSE=$(curl -s -X POST \
+  "https://api.leap.energy/v1.1/global-connect/session?transmission_region=PJM&customer_classification=RESIDENTIAL&partner_nickname=YourPartnerName&partner_reference=customer-123&variant=byod" \
+  -H "Authorization: Bearer $JWT_TOKEN")
+
+SESSION_ID=$(echo $SESSION_RESPONSE | jq -r '.session_id')
+AGREEMENT_KEY=$(echo $SESSION_RESPONSE | jq -r '.step.component_attributes.agreement_keys[0]')
+
+echo "Session ID: $SESSION_ID"
+echo "Agreement Key: $AGREEMENT_KEY"
+
+# 2. Create agreement to get content
+AGREEMENT_RESPONSE=$(curl -s -X POST \
+  "https://api.leap.energy/v1.1/global-connect/session/$SESSION_ID/agreement" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"agreement_key\": \"$AGREEMENT_KEY\"}")
+
+echo "Agreement Title: $(echo $AGREEMENT_RESPONSE | jq -r '.one_click_agreement.title')"
+
+# 3. Display agreement to user and collect acceptance...
+# (Your UI code here)
+
+# 4. Submit acceptance
+curl -s -X PUT \
+  "https://api.leap.energy/v1.1/global-connect/session/$SESSION_ID/agreement" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"agreement_key\": \"$AGREEMENT_KEY\", \"agreement_status\": \"AGREED\"}"
+
+# 5. Complete the session
+curl -s -X POST \
+  "https://api.leap.energy/v1.1/global-connect/session/$SESSION_ID/step" \
+  -H "Authorization: Bearer $JWT_TOKEN"
+
+echo "Session completed!"
+```
+
+## Handling Multiple Agreements
+
+Some programs require multiple agreements. Check the `agreement_keys` array in `component_attributes`:
+
+```json
+{
+  "step": {
+    "component_attributes": {
+      "agreement_keys": [
+        "pjm-capacity-agreement-v1",
+        "prohibited-resource-attestation-v1"
+      ]
+    }
+  }
+}
+```
+
+Create and accept each agreement before advancing:
+
+```bash
+# Create and accept first agreement
+curl -X POST ".../agreement" -d '{"agreement_key": "pjm-capacity-agreement-v1"}'
+curl -X PUT ".../agreement" -d '{"agreement_key": "pjm-capacity-agreement-v1", "agreement_status": "AGREED"}'
+
+# Create and accept second agreement
+curl -X POST ".../agreement" -d '{"agreement_key": "prohibited-resource-attestation-v1"}'
+curl -X PUT ".../agreement" -d '{"agreement_key": "prohibited-resource-attestation-v1", "agreement_status": "AGREED"}'
+
+# Now advance
+curl -X POST ".../step"
+```
+
+## Best Practices
+
+### UI Recommendations
+
+<CardGroup cols={2}>
+  <Card title="Show Summary First" icon="eye">
+    Display the summary text initially, with an option to expand to full text. This reduces cognitive load while ensuring full disclosure.
+  </Card>
+  <Card title="Render Markdown" icon="code">
+    Both summary_text and full_text are Markdown. Use a Markdown renderer for proper formatting of headers, lists, and emphasis.
+  </Card>
+  <Card title="Require Explicit Consent" icon="square-check">
+    Use a checkbox or explicit "I Agree" button rather than implied consent. Store the timestamp of acceptance.
+  </Card>
+  <Card title="Handle Rejection" icon="xmark">
+    If a customer declines, update with `agreement_status: "REJECTED"` and handle the flow appropriately in your UI.
+  </Card>
+</CardGroup>
+
+### Error Handling
+
+- **409 Conflict**: Session already completed or closed - start a new session
+- **410 Gone**: Session expired - sessions have a limited lifetime, start a new one
+- **412 Precondition Failed**: Validation failed - ensure all required agreements are accepted before advancing
+
+### Webhooks
+
+Configure webhooks to receive notifications when sessions complete. This allows you to:
+- Update your database when enrollment is confirmed
+- Trigger downstream processes (welcome emails, account setup, etc.)
+- Handle completion asynchronously without polling
+
+Contact your Leap Energy integration team to set up webhooks for your partner account.
+
+## API Reference
+
+<CardGroup cols={2}>
+  <Card title="Start New Session" icon="play" href="/api-reference/startNewSession">
+    Create a session with variant=byod
+  </Card>
+  <Card title="Create Agreement" icon="file-plus" href="/api-reference/createAgreement">
+    Get agreement content
+  </Card>
+  <Card title="Update Agreement" icon="file-pen" href="/api-reference/updateAgreement">
+    Submit acceptance or rejection
+  </Card>
+  <Card title="Get Connections" icon="link" href="/api-reference/getConnections">
+    Track enrollment status
+  </Card>
+</CardGroup>
